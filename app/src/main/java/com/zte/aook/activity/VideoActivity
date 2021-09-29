@@ -1,0 +1,143 @@
+package com.zte.aook.activity
+
+import android.content.Context
+import android.graphics.Color
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import androidx.appcompat.app.AppCompatActivity
+import com.zte.aook.R
+import kotlinx.android.synthetic.main.video_activity.*
+import master.flame.danmaku.controller.DrawHandler
+import master.flame.danmaku.danmaku.model.BaseDanmaku
+import master.flame.danmaku.danmaku.model.DanmakuTimer
+import master.flame.danmaku.danmaku.model.IDanmakus
+import master.flame.danmaku.danmaku.model.android.DanmakuContext
+import master.flame.danmaku.danmaku.model.android.Danmakus
+import master.flame.danmaku.danmaku.parser.BaseDanmakuParser
+import java.util.*
+
+class VideoActivity : AppCompatActivity() {
+    val TAG: String = "VideoActivity"
+    var showDanmu: Boolean = false
+    var mDanmuContext: DanmakuContext? = null
+    var mParser: BaseDanmakuParser = object : BaseDanmakuParser() {
+        override fun parse(): IDanmakus {
+            return Danmakus()
+        }
+    }
+
+    var imm: InputMethodManager? = null
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Log.i(TAG, " onCreate")
+        setContentView(R.layout.video_activity)
+        initView()
+        imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager?
+    }
+
+
+    fun initView() {
+        video_view.setVideoPath("http://baobab.kaiyanapp.com/api/v1/playUrl?vid=277004&resourceType=video&editionType=default&source=aliyun&playUrlType=url_oss&udid=")
+        video_view.start()
+        video_view.setOnPreparedListener {
+            it.isLooping = true
+        }
+
+        danmu_view.enableDanmakuDrawingCache(true)
+        danmu_view.setCallback(object : DrawHandler.Callback {
+            override fun prepared() {
+                showDanmu = true
+                danmu_view.start()
+            }
+
+            override fun updateTimer(timer: DanmakuTimer?) {
+            }
+
+            override fun danmakuShown(danmaku: BaseDanmaku?) {
+            }
+
+            override fun drawingFinished() {
+            }
+        })
+
+
+        danmu_view.setOnClickListener {
+            Log.i(TAG, " danmu_view onClick visibility=${danmu_layout.visibility}")
+            if (danmu_layout.visibility == View.VISIBLE) {
+                danmu_layout.visibility = View.GONE
+            } else {
+                danmu_layout.visibility = View.VISIBLE
+            }
+        }
+
+        window?.decorView?.setOnSystemUiVisibilityChangeListener {
+            if (it == View.SYSTEM_UI_FLAG_VISIBLE) {
+                onWindowFocusChanged(true)
+            }
+        }
+
+        mDanmuContext = DanmakuContext.create()
+        danmu_view.prepare(mParser, mDanmuContext)
+        danmu_send.setOnClickListener {
+            //generate( danmu_edittext.text.toString())
+            addDanmuView(danmu_edittext.text.toString(),true)
+        }
+    }
+
+    private fun generate(content:String){
+        Thread{
+            while (showDanmu){
+                Thread.sleep(100)
+                var danmu:String = content+ Random().nextInt(300)
+                addDanmuView(danmu,true)
+            }
+        }.start()
+    }
+
+    fun sp2px(spValue: Int): Int {
+        val fontScale: Float = resources.displayMetrics.scaledDensity
+        return (spValue * fontScale + 0.5f).toInt()
+    }
+
+    fun addDanmuView(content: String, withBorder: Boolean) {
+        val baseDanmaKu: BaseDanmaku =
+            mDanmuContext!!.mDanmakuFactory.createDanmaku(BaseDanmaku.TYPE_SCROLL_RL)
+        baseDanmaKu.text = content
+        baseDanmaKu.padding = 5
+        baseDanmaKu.textSize = sp2px(20).toFloat()
+        baseDanmaKu.textColor = Color.WHITE
+        baseDanmaKu.time = danmu_view.currentTime
+        if (withBorder) {
+            baseDanmaKu.borderColor = Color.TRANSPARENT
+        }
+        danmu_view.addDanmaku(baseDanmaKu)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (danmu_view != null && danmu_view.isPrepared) {
+            danmu_view.pause()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (danmu_view != null && danmu_view.isPrepared && danmu_view.isPaused) {
+            danmu_view.resume()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (danmu_view != null) {
+            showDanmu = false
+            danmu_view.release()
+            //danmu_view = null
+        }
+    }
+
+}
