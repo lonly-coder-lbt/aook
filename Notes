@@ -1,0 +1,3 @@
+adb无线连接
+adb pair addr:port ; adb connect addr:port
+
